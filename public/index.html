@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>approval-service · console</title>
+<style>
+  :root{
+    --ink:#1c2126; --muted:#5c6670; --line:#d9dee3; --paper:#f3f4f2; --card:#ffffff;
+    --accent:#0e6e5c; --accent-soft:#e2f0ec;
+    --pending:#8a6d1a; --pending-bg:#f6ecd2;
+    --approved:#0e6e5c; --approved-bg:#dcefe8;
+    --rejected:#a13030; --rejected-bg:#f6dcdc;
+    --cancelled:#5c6670; --cancelled-bg:#e7eaec;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans)}
+  header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px}
+  header h1{margin:0;font:500 17px var(--mono);letter-spacing:.02em}
+  header span{color:var(--muted);font-size:13px}
+  main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px 28px;max-width:1200px}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .card h2{margin:0 0 12px;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 3px}
+  input[type=text],select,textarea{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;font:13px var(--mono);background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:44px}
+  .actions-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .actions-row label{display:flex;align-items:center;gap:5px;margin:0;font-size:12px;color:var(--ink)}
+  button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:7px 13px;font:500 13px var(--sans);cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{filter:brightness(1.08);color:#fff}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  .toolbar select{width:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  td .id{font:11px var(--mono);color:var(--muted)}
+  .pill{display:inline-block;font:500 11px var(--mono);padding:2px 9px;border-radius:99px}
+  .pill.pending{color:var(--pending);background:var(--pending-bg)}
+  .pill.approved{color:var(--approved);background:var(--approved-bg)}
+  .pill.rejected{color:var(--rejected);background:var(--rejected-bg)}
+  .pill.cancelled{color:var(--cancelled);background:var(--cancelled-bg)}
+  .row-actions{display:flex;gap:6px}
+  .row-actions button{padding:4px 9px;font-size:12px}
+  #log{font:12px var(--mono);background:#161a1d;color:#c9d4dc;border-radius:10px;padding:14px;margin:0 28px 28px;max-width:1144px;white-space:pre-wrap;max-height:220px;overflow:auto}
+  #log .ok{color:#7fd0b8}
+  #log .err{color:#e79a9a}
+  .empty{color:var(--muted);padding:18px 8px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>approval-service</h1>
+  <span>local console — not part of the task, just a convenient way to poke the API</span>
+</header>
+
+<main>
+  <div>
+    <section class="card" aria-labelledby="auth-h">
+      <h2 id="auth-h">Auth stub</h2>
+      <label for="ws">Workspace (X-Workspace-Id)</label>
+      <input type="text" id="ws" value="ws_1">
+      <label for="user">User (X-User-Id)</label>
+      <input type="text" id="user" value="usr_1">
+      <label>Actions (X-Actions)</label>
+      <div class="actions-row">
+        <label><input type="checkbox" class="act" value="approval:read" checked> read</label>
+        <label><input type="checkbox" class="act" value="approval:create" checked> create</label>
+        <label><input type="checkbox" class="act" value="approval:decide" checked> decide</label>
+        <label><input type="checkbox" class="act" value="approval:cancel" checked> cancel</label>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:20px" aria-labelledby="create-h">
+      <h2 id="create-h">New approval request</h2>
+      <label for="stype">sourceType</label>
+      <select id="stype">
+        <option>publication</option><option>scenario</option><option>edit</option><option>external</option>
+      </select>
+      <label for="sid">sourceId</label>
+      <input type="text" id="sid" value="pub_123">
+      <label for="title">title</label>
+      <input type="text" id="title" value="Instagram reel draft">
+      <label for="descr">description</label>
+      <textarea id="descr">Needs final approval</textarea>
+      <label for="reviewers">reviewerUserIds (comma-separated)</label>
+      <input type="text" id="reviewers" value="usr_1, usr_2">
+      <div style="margin-top:14px">
+        <button class="primary" id="create-btn">Create request</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="list-h">
+    <h2 id="list-h">Requests in workspace</h2>
+    <div class="toolbar">
+      <select id="filter">
+        <option value="">all statuses</option>
+        <option value="pending">pending</option>
+        <option value="approved">approved</option>
+        <option value="rejected">rejected</option>
+        <option value="cancelled">cancelled</option>
+      </select>
+      <button id="refresh-btn">Refresh</button>
+      <span id="total" style="color:var(--muted);font-size:12px"></span>
+    </div>
+    <table>
+      <thead><tr><th>Request</th><th>Source</th><th>Status</th><th>Decision</th><th></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="empty">Nothing loaded yet — press Refresh.</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<pre id="log" aria-live="polite">— request log —</pre>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const logEl = $('#log');
+
+function headers() {
+  const actions = [...document.querySelectorAll('.act:checked')].map(c => c.value).join(',');
+  return {
+    'Content-Type': 'application/json',
+    'X-Workspace-Id': $('#ws').value.trim(),
+    'X-User-Id': $('#user').value.trim(),
+    'X-Actions': actions,
+  };
+}
+function base() { return `/api/v1/workspaces/${encodeURIComponent($('#ws').value.trim())}/approval-requests`; }
+
+function log(method, url, status, body) {
+  const cls = status < 400 ? 'ok' : 'err';
+  logEl.innerHTML += `\n<span class="${cls}">${method} ${url} → ${status}</span>  ${JSON.stringify(body)}`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function call(method, url, body, extraHeaders = {}) {
+  const res = await fetch(url, {
+    method,
+    headers: { ...headers(), ...extraHeaders },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  log(method, url, res.status, json);
+  return { status: res.status, body: json };
+}
+
+async function refresh() {
+  const f = $('#filter').value;
+  const { status, body } = await call('GET', base() + (f ? `?status=${f}` : ''));
+  const tbody = $('#rows');
+  if (status !== 200) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Error ${status}: ${body.error?.message ?? ''}</td></tr>`;
+    $('#total').textContent = '';
+    return;
+  }
+  $('#total').textContent = `total: ${body.total}`;
+  if (!body.items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No requests in this workspace.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = body.items.map(r => `
+    <tr>
+      <td><strong>${esc(r.title)}</strong><br><span class="id">${r.id}</span></td>
+      <td><span class="id">${esc(r.sourceType)} / ${esc(r.sourceId)}</span></td>
+      <td><span class="pill ${r.status}">${r.status}</span></td>
+      <td>${r.decidedBy ? `${esc(r.decidedBy)}<br><span class="id">${esc(r.decisionComment ?? r.decisionReason ?? '')}</span>` : '—'}</td>
+      <td class="row-actions">${r.status === 'pending' ? `
+        <button onclick="decide('${r.id}','approve')">Approve</button>
+        <button onclick="decide('${r.id}','reject')">Reject</button>
+        <button onclick="decide('${r.id}','cancel')">Cancel</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function decide(id, action) {
+  let body = {};
+  if (action === 'approve') {
+    const comment = prompt('Comment (optional):', 'Approved');
+    if (comment === null) return;
+    if (comment.trim()) body.comment = comment.trim();
+  } else {
+    const reason = prompt('Reason (required):', action === 'reject' ? 'Brand tone is wrong' : 'Draft was removed');
+    if (reason === null) return;
+    body.reason = reason;
+  }
+  await call('POST', `${base()}/${id}/${action}`, body, { 'Idempotency-Key': crypto.randomUUID() });
+  refresh();
+}
+
+$('#create-btn').addEventListener('click', async () => {
+  const body = {
+    sourceType: $('#stype').value,
+    sourceId: $('#sid').value.trim(),
+    title: $('#title').value.trim(),
+    description: $('#descr').value.trim() || undefined,
+    reviewerUserIds: $('#reviewers').value.split(',').map(s => s.trim()).filter(Boolean),
+  };
+  await call('POST', base(), body, { 'Idempotency-Key': crypto.randomUUID() });
+  refresh();
+});
+$('#refresh-btn').addEventListener('click', refresh);
+$('#filter').addEventListener('change', refresh);
+refresh();
+</script>
+</body>
+</html>
